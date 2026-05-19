@@ -1,5 +1,6 @@
 import streamlit as st
 import preprocessor, helper
+import matplotlib.pyplot as plt
 
 st.sidebar.title("WhatsApp Chat Analysis")
 
@@ -21,8 +22,38 @@ if uploaded_file is not None:
   selected_user = st.sidebar.selectbox("Show analysis wrt", users_list)
 
   if st.sidebar.button("Show Analysis"):
-    num_messages = helper.fetch_stats(selected_user, df)
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    num_messages, words, num_media_messages, links = helper.fetch_stats(selected_user, df)
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-      st.metric(label="Total Messages", int(num_messages))
+      st.metric("Total Messages", num_messages)
+
+    with col2:
+      st.metric("Total Words", words)
+
+    with col3:
+      st.metric("Media Shared", num_media_messages)
+
+    with col4:
+      st.metric("Links Shared", links)
+
+
+    if selected_user=='Overall':
+      st.title("Most Busy Users")
+      x, new_df= helper.most_busy_users(df)
+      fig, ax = plt.subplots()
+      col1, col2 = st.columns(2)
+
+      with col1:
+        ax.bar(x.index, x.values, color='burlywood')
+        plt.xticks(rotation='vertical')
+        st.pyplot(fig)
+
+      with col2:
+        st.dataframe(new_df)
+    
+    st.title("WordCloud")
+    df_wc = helper.create_wordcloud(selected_user, df)
+    fig, ax = plt.subplots()
+    ax.imshow(df_wc)
+    st.pyplot(fig)
