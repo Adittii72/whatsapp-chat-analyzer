@@ -8,12 +8,10 @@ uploaded_file = st.sidebar.file_uploader("Choose a file")
 if uploaded_file is not None:
   bytes_data = uploaded_file.getvalue()
   data = bytes_data.decode("utf-8")
-  # st.text(data)
   df = preprocessor.preprocess(data)
 
   st.dataframe(df)
 
-  #fetch unique users
   users_list = df['user'].unique().tolist()
   users_list.remove('group_notification')
   users_list.sort()
@@ -57,3 +55,26 @@ if uploaded_file is not None:
     fig, ax = plt.subplots()
     ax.imshow(df_wc)
     st.pyplot(fig)
+
+    st.title("Most Common Words")
+    most_common_df = helper.most_common_words(selected_user, df)
+    fig, ax = plt.subplots()
+    ax.barh(most_common_df[0], most_common_df[1], color='maroon')
+    plt.xticks(rotation='vertical')
+    st.pyplot(fig)
+
+    
+    emoji_df = helper.emoji_helper(selected_user, df)
+    st.title("Emoji Analysis")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+      st.dataframe(emoji_df)
+
+    with col2:
+      plt.rcParams['font.family'] = 'Segoe UI Emoji'
+      fig, ax = plt.subplots()
+      ax.pie(emoji_df[1].head(), labels=emoji_df[0].head(), autopct="%0.2f")
+      st.pyplot(fig)
+    
