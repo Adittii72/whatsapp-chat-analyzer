@@ -1,8 +1,44 @@
 import re
 import pandas as pd
 
+def _parse_message_dates(message_dates):
+  message_dates = (
+      message_dates.astype(str)
+      .str.replace(r'\s*-\s*$', '', regex=True)
+      .str.replace('\u202f', ' ', regex=False)
+      .str.replace('\xa0', ' ', regex=False)
+      .str.replace(r'(?i)\s*a\.?m\.?$', ' AM', regex=True)
+      .str.replace(r'(?i)\s*p\.?m\.?$', ' PM', regex=True)
+      .str.strip()
+  )
+
+  parsed_dates = pd.Series(pd.NaT, index=message_dates.index, dtype='datetime64[ns]')
+  date_formats = [
+      '%d/%m/%y, %H:%M',
+      '%d/%m/%Y, %H:%M',
+      '%d/%m/%y, %H:%M:%S',
+      '%d/%m/%Y, %H:%M:%S',
+      '%d/%m/%y, %I:%M %p',
+      '%d/%m/%Y, %I:%M %p',
+      '%d/%m/%y, %I:%M:%S %p',
+      '%d/%m/%Y, %I:%M:%S %p',
+  ]
+
+  for date_format in date_formats:
+      missing_dates = parsed_dates.isna()
+      if not missing_dates.any():
+          break
+
+      parsed_dates.loc[missing_dates] = pd.to_datetime(
+          message_dates.loc[missing_dates],
+          format=date_format,
+          errors='coerce'
+      )
+
+  return parsed_dates
+
 def preprocess(data):
-  pattern = r'\d{1,2}/\d{1,2}/\d{2,4},\s\d{1,2}:\d{2}\s-\s'
+  pattern = r'\d{1,2}/\d{1,2}/\d{2,4},\s*\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?[Mm]\.?)?\s*-\s'
 
   messages = re.split(pattern, data)[1:]
   dates = re.findall(pattern, data)
@@ -16,14 +52,10 @@ def preprocess(data):
       'user_message': messages
   })
 
-  df['message_date'] = df['message_date'].str.replace(' - ', '')
+  df['message_date'] = _parse_message_dates(df['message_date'])
 
   # 🔹 7. Convert to datetime
-  df['message_date'] = pd.to_datetime(
-      df['message_date'],
-      format='%d/%m/%y, %H:%M',
-      errors='coerce'
-  )
+  df = df.dropna(subset=['message_date'])
 
   df.rename(columns={'message_date': 'date'}, inplace=True)
 
