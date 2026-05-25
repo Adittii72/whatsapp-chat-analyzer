@@ -1,6 +1,10 @@
 import re
 import pandas as pd
 
+MESSAGE_START_PATTERN = re.compile(
+  r'^\s*\[?(?P<message_date>\d{1,2}/\d{1,2}/\d{2,4},\s*\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?[Mm]\.?)?)\]?\s*(?:-\s*)?(?P<user_message>.*)$'
+)
+
 def _parse_message_dates(message_dates):
   message_dates = (
       message_dates.astype(str)
@@ -38,14 +42,17 @@ def _parse_message_dates(message_dates):
   return parsed_dates
 
 def preprocess(data):
-  pattern = r'\d{1,2}/\d{1,2}/\d{2,4},\s*\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?[Mm]\.?)?\s*-\s'
+  dates = []
+  messages = []
 
-  messages = re.split(pattern, data)[1:]
-  dates = re.findall(pattern, data)
+  for line in data.splitlines():
+      match = MESSAGE_START_PATTERN.match(line)
 
-  min_len = min(len(messages), len(dates))
-  messages = messages[:min_len]
-  dates = dates[:min_len]
+      if match:
+          dates.append(match.group('message_date'))
+          messages.append(match.group('user_message'))
+      elif messages:
+          messages[-1] = messages[-1] + ' ' + line.strip()
 
   df = pd.DataFrame({
       'message_date': dates,
@@ -59,7 +66,7 @@ def preprocess(data):
 
   df.rename(columns={'message_date': 'date'}, inplace=True)
 
-  df['user_message'] = df['user_message'].str.replace('\n', ' ')
+  df['user_message'] = df['user_message'].astype(str).str.replace('\n', ' ', regex=False)
   df['user_message'] = df['user_message'].str.strip()
 
   users = []
